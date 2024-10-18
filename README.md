@@ -6,3 +6,4 @@
 1. Pycharm
 2. Access to install libraries through pycharm
 3. LM Studio
+4. Signup to the Huggingface
