@@ -5,7 +5,7 @@
 ## Requirements
 1. Pycharm
 2. Access to install libraries through pycharm
-3. LM Studio
+3. LM Studio & gpt4all (Optional)
 4. Signup to the Huggingface
 5. Access the Google Colab
 ## Retrieval Augmented Generation (RAG) basic view
