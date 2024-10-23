@@ -17,6 +17,7 @@ from langchain_ollama import ChatOllama
 from langchain_ollama import OllamaEmbeddings
 
 
+
 # Reading the API key file
 with open("api_key.json", "r") as f:
     apis = json.load(f)
