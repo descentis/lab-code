@@ -1,21 +1,22 @@
-import os
+from dotenv import load_dotenv
 import streamlit as st
-from langchain_community.documnet_loaders import PyPDFLoader
-from langchain_text_splitters.character import CharacterTextSplitter, REcursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters.character import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import InMemoryVectorStore
-from langchain_qrog import ChatGroq
+from langchain_groq import ChatGroq
 from langchain_nomic import NomicEmbeddings
-from langchain.memory import ConverstionBufferMemory
-from langchain.chain import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationalRetrievalChain
 import json
+import os
+load_dotenv()
+working_dir = os.path.dirname(os.path.abspath(__file__))
 
-working_dir = os.path.dirname(os.path.abspath.(__file__))
+#with open("api_key.json", "r") as f:
+#	apis = json.load(f)
 
-with open("api_key.json", "r") as f:
-	apis = json.load(f)
-
-os.environ['GROQ_API_KEY'] = apis['GROQ_API_KEY']
-os.environ['NOMIC_API_KEY'] = apis['NOMIC_API_KEY']
+os.environ['GROQ_API_KEY'] = st.secrets['GROQ_API_KEY']
+os.environ['NOMIC_API_KEY'] = st.secrets['NOMIC_API_KEY']
 
 def load_document(file_path):
 	loader = PyPDFLoader(file_path)
@@ -25,7 +26,7 @@ def load_document(file_path):
 def create_vectorstore(documents):
 	text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=300)
 	splits = text_splitter.split_documents(documents)
-	vectorstore = InMemoryVectorStore.from_documents(document=splits, embedding=NomicEmbeddings(model="nomic-embed-text-v1.5"))	
+	vectorstore = InMemoryVectorStore.from_documents(documents=splits, embedding=NomicEmbeddings(model="nomic-embed-text-v1.5"))
 	return vectorstore
 
 def create_chain(vectorstore):
@@ -38,9 +39,8 @@ def create_chain(vectorstore):
 		llm=llm,
 		output_key="answer",
 		memory_key="chat_history",
-		return
+		return_messages = True
 	)
-	return memory
 	chain = ConversationalRetrievalChain.from_llm(
 		llm=llm,
 		retriever=retriever,
@@ -54,7 +54,7 @@ st.set_page_config(
 	page_title="A basic Chatbot",
 	layout='centered'
 )
-st.title("RAG with Streamlit)
+st.title("RAG with Streamlit")
 
 if 'chat_history' not in st.session_state:
 	st.session_state.chat_history = []
@@ -77,14 +77,15 @@ for message in st.session_state.chat_history:
 
 user_input = st.chat_input("Talk to the bot..")
 
-if user_input
+if user_input:
 	st.session_state.chat_history.append({'role': "user", "content": user_input})
 	with st.chat_message("user"):
 		st.markdown(user_input)
+
 	with st.chat_message("assistant"):
 		response = st.session_state.conversation_chain({'question': user_input})
 		assistant_response = response["answer"]
-		st.markdown(assistant_reponse)
-		st.session_state.chat_history.append({'role': 'assistant', 'content': assistant_response})
+		st.markdown(assistant_response)
+	st.session_state.chat_history.append({'role': "assistant", "content": assistant_response})
 
 
