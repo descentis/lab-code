@@ -1,7 +1,5 @@
 import os
-
 os.environ['USER_AGENT'] = 'MyChatbot/1.0 (Windows 10; Python 3.12)'
-
 
 import langchain_community
 import bs4
@@ -17,38 +15,20 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_groq import ChatGroq
 from langchain_nomic import NomicEmbeddings
 import json
-
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_ollama import ChatOllama
 from langchain_ollama import OllamaEmbeddings
-
 
 # Reading the API key file
 with open("api_keys.json", "r") as f:
     apis = json.load(f)
 
-'''
-# Storing the APIs in the virtual env
-os.environ['GROQ_API_KEY'] = apis['GROQ_API_KEY']
-os.environ['NOMIC_API_KEY'] = apis['NOMIC_API_KEY']
-'''
 #llm = ChatGroq(model="llama3-8b-8192")
 llm = ChatOllama(model="llama3.2:1b")
 
 # A pdf document loader
 file_path = 'Generative AI Course.pdf'
 loader = PyPDFLoader(file_path)
-
-'''
-# Creating a retriever
-loader = WebBaseLoader(
-    web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
-    bs_kwargs=dict(
-        parse_only=bs4.SoupStrainer(
-            class_=("post-content", "post-title", "post-header"))
-        ),
-)
-'''
 
 docs = loader.load()
 
@@ -57,7 +37,6 @@ splits = text_splitter.split_documents(docs)
 #vectorstore = InMemoryVectorStore.from_documents(documents=splits, embedding=NomicEmbeddings(model="nomic-embed-text-v1.5"))
 vectorstore = InMemoryVectorStore.from_documents(documents=splits, embedding=OllamaEmbeddings(model="nomic-embed-text:latest"))
 retriever = vectorstore.as_retriever()
-
 
 # Contextualize question
 contextualize_q_system_prompt = (
@@ -100,10 +79,8 @@ qa_prompt = ChatPromptTemplate.from_messages(
 question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-
 # Create a chat history
 store = {}
-
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
     if session_id not in store:
