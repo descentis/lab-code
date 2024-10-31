@@ -1,4 +1,3 @@
-## Read Me
 - Make sure you have 3 files in root directory - main.py, api_key.json, requirements.txt
 - add your own Groq and Nomic API keys in api_key.json file
 - Run below commands at root directory in terminal to run the app on streamlit
