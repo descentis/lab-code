@@ -1,4 +1,4 @@
 {
-  "GROQ_API_KEY": "",
-  "NOMIC_API_KEY": ""
+  "GROQ_API_KEY": "your_groq_api_key_here",
+  "NOMIC_API_KEY": "your_nomic_api_key_here"
 }
