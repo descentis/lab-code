@@ -1,5 +1,5 @@
 ## Live Demo
-- You can try the application live at: [PDF RAG ChatBot](https://pdf-rag-chatbot-vk.streamlit.app/)
+- You can try the application live at: [PDF RAG ChatBot](https://pdf-rag-chatbot-vnk.streamlit.app/)
 
 ## Installation
 - Make sure you have 3 files in root directory - main.py, api_key.json, requirements.txt
