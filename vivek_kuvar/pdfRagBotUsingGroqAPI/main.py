@@ -21,11 +21,30 @@ st.set_page_config(page_title="PDF RAG Bot")
 # Chat Title
 st.title("PDF RAG Chat Bot Using Groq API (model = llama3-8b-8192)")
 
-# Load API keys from JSON file
-with open("api_key.json", "r") as f:
-    api_keys = json.load(f)
-    os.environ['GROQ_API_KEY'] = api_keys['GROQ_API_KEY']
-    os.environ['NOMIC_API_KEY'] = api_keys['NOMIC_API_KEY']
+def load_api_keys():
+    """Load API keys from a JSON file or environment variables."""
+    try:
+        with open("api_key.json", "r") as f:
+            api_keys = json.load(f)
+            os.environ['GROQ_API_KEY'] = api_keys['GROQ_API_KEY']
+            os.environ['NOMIC_API_KEY'] = api_keys['NOMIC_API_KEY']
+    except FileNotFoundError:
+        st.warning("API keys JSON file not found. Falling back to environment variables from GitHub Secrets.")
+
+    # Retrieve from environment variables
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    NOMIC_API_KEY = os.getenv("NOMIC_API_KEY")
+
+    # Check if the keys were retrieved from environment variables
+    if not GROQ_API_KEY or not NOMIC_API_KEY:
+        st.error("API keys are not set in environment variables. Please check your GitHub Secrets.")
+        return None, None
+
+    return GROQ_API_KEY, NOMIC_API_KEY
+
+
+# Load API keys
+GROQ_API_KEY, NOMIC_API_KEY = load_api_keys()
 
 # Initialize session id and state to keep track of chat history
 if "session_id" not in st.session_state:
