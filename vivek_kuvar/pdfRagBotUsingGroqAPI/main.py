@@ -12,7 +12,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_groq import ChatGroq
 #from langchain_nomic import NomicEmbeddings    # exceeded 1000000 free tokens of Nomic Embedding API usage
 from langchain_community.embeddings import HuggingFaceEmbeddings  # using hugging face embedding
-
+from resource_monitor import display_resource_usage  # Import the function
 import json
 import os
 import uuid
@@ -22,6 +22,9 @@ st.set_page_config(page_title="PDF RAG Bot")
 
 # Chat Title
 st.title("PDF RAG Chat Bot Using Groq API (model = llama3-8b-8192)")
+
+# Call the resource usage display function
+display_resource_usage()
 
 def load_api_keys():
     """Load API keys from environment variable if available else fetch keys from JSON file."""
