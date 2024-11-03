@@ -10,7 +10,9 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_groq import ChatGroq
-from langchain_nomic import NomicEmbeddings
+#from langchain_nomic import NomicEmbeddings    # exceeded 1000000 free tokens of Nomic Embedding API usage
+from langchain_community.embeddings import HuggingFaceEmbeddings  # using hugging face embedding
+
 import json
 import os
 import uuid
@@ -96,7 +98,7 @@ def initialize_chain():
         with open("temp.pdf", "wb") as f:
             f.write(uploaded_file.getvalue())
         loader = PyPDFLoader("temp.pdf")
-        docs = loader.load()
+        docs = loader.load()    # extracts text into a list of document objects
 
         # Debug - Print loaded documents
         #print("Loaded Documents:", docs)
@@ -108,7 +110,7 @@ def initialize_chain():
 
         # Split text and create vectorstore
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-        splits = text_splitter.split_documents(docs)
+        splits = text_splitter.split_documents(docs)     # list of text chunks
 
         # Debug - Print split documents
         #print("Split Documents:", splits)
@@ -119,7 +121,12 @@ def initialize_chain():
             return False
 
         # Use Nomic embeddings
-        embeddings = NomicEmbeddings(model="nomic-embed-text-v1.5")
+        # embeddings = NomicEmbeddings(model="nomic-embed-text-v1.5")
+        # Exception: (400, '{"detail":"You have exceeded your 1000000 free tokens of Nomic Embedding API usage.
+        # Enter a payment method at https://atlas.nomic.ai to continue with usage-based billing."}')
+
+        # Using Hugging Face embeddings model because free tokens exceeded for Nomic Embeddings as mentioned above
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
         # Create  in-memory vector store
         st.session_state.vector_store = InMemoryVectorStore.from_documents(documents=splits,embedding=embeddings)
