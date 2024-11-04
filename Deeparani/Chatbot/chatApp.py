@@ -1,11 +1,11 @@
 import json
 import os
+import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import InMemoryVectorStore
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
-from langchain_nomic import NomicEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
@@ -13,13 +13,14 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
+st.title("RAG Application")
+
 # Reading the API key file
 with open("C:\\Pycharm_Workspace\\chatbotProject\\chatbotProject\\api_key.json", "r") as f:
     apis = json.load(f)
 
 # Storing the APIs in the virtual env
 os.environ['GROQ_API_KEY'] = apis['GROQ_API_KEY']
-os.environ['NOMIC_API_KEY'] = apis['NOMIC_API_KEY']
 
 # PDF File loader
 def file_loader(filename):
@@ -29,8 +30,9 @@ def file_loader(filename):
     print("Creating the embeddings:::")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     splits = text_splitter.split_documents(page_contents)
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vectorstore = InMemoryVectorStore.from_documents(documents=splits,
-                                                     embedding=NomicEmbeddings(model="nomic-embed-text-v1.5"))
+                                                     embedding=embeddings)
 
     print("Embeddings Created:::::::::")
     return vectorstore
@@ -38,7 +40,7 @@ def file_loader(filename):
 llm = ChatGroq(
         model="llama3-8b-8192",
         temperature=0.4,
-        max_tokens=3000,
+        max_tokens=300,
     )
 
 retriever = file_loader("Generative_AI.pdf").as_retriever()
@@ -101,15 +103,30 @@ conversational_rag_chain = RunnableWithMessageHistory(
     output_messages_key="answer"
 )
 
-while True:
-    user_input = input("User: ")
-    if user_input.lower() in ['quit', 'exit', 'bye', 'q']:
-        print('Goodbye')
-        break
-    response = conversational_rag_chain.invoke(
-        {'input': user_input},
-        config={
-            'configurable': {'session_id': "abc123"}
-        },
-    )
-    print(response['answer'])
+# initialize the chat history in streamlit session state
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+user_input = st.chat_input("Say Something...")
+
+
+if user_input:
+    with st.chat_message("user"):
+        st.markdown(user_input)
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        response = conversational_rag_chain.invoke(
+            {'input': user_input},
+            config={
+                'configurable': {'session_id': "abc123"}
+            },
+        )
+
+        assistant_response = response["answer"]
+    with st.chat_message("assistant"):
+         st.markdown(assistant_response)
+    st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
+
