@@ -10,7 +10,9 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_groq import ChatGroq
-from langchain_nomic import NomicEmbeddings
+#from langchain_nomic import NomicEmbeddings    # exceeded 1000000 free tokens of Nomic Embedding API usage
+from langchain_community.embeddings import HuggingFaceEmbeddings  # using hugging face embedding
+from resource_monitor import display_resource_usage  # Import the function
 import json
 import os
 import uuid
@@ -21,30 +23,61 @@ st.set_page_config(page_title="PDF RAG Bot")
 # Chat Title
 st.title("PDF RAG Chat Bot Using Groq API (model = llama3-8b-8192)")
 
+# Call the resource usage display function
+display_resource_usage()
+
 def load_api_keys():
-    """Load API keys from a JSON file or environment variables."""
-    try:
-        with open("api_key.json", "r") as f:
-            api_keys = json.load(f)
-            os.environ['GROQ_API_KEY'] = api_keys['GROQ_API_KEY']
-            os.environ['NOMIC_API_KEY'] = api_keys['NOMIC_API_KEY']
-    except FileNotFoundError:
-        st.warning("API keys JSON file not found. Falling back to environment variables from GitHub Secrets.")
+    """Load API keys from environment variable if available else fetch keys from JSON file."""
 
-    # Retrieve from environment variables
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    NOMIC_API_KEY = os.getenv("NOMIC_API_KEY")
+    # Initialize a flag to track key availability
+    keys_available = True
 
-    # Check if the keys were retrieved from environment variables
-    if not GROQ_API_KEY or not NOMIC_API_KEY:
-        st.error("API keys are not set in environment variables. Please check your GitHub Secrets.")
-        return None, None
+    # Check if API keys are set in environment variables
+    if os.getenv('GROQ_API_KEY') and os.getenv('NOMIC_API_KEY'):
+        os.environ['GROQ_API_KEY'] = os.getenv('GROQ_API_KEY')
+        os.environ['NOMIC_API_KEY'] = os.getenv('NOMIC_API_KEY')
+    else:
+        # If keys not found in environment variables, check the JSON file
+        try:
+            with open("api_keys.json", "r") as f:
+                api_keys = json.load(f)
+                os.environ['GROQ_API_KEY'] = api_keys.get('GROQ_API_KEY')
+                os.environ['NOMIC_API_KEY'] = api_keys.get('NOMIC_API_KEY')
 
-    return GROQ_API_KEY, NOMIC_API_KEY
+                if not os.environ['GROQ_API_KEY'] or not os.environ['NOMIC_API_KEY']:
+                    st.warning("One or both API keys not found in JSON file. Please check the file.")
+                    keys_available = False
 
+                else:
+                    st.warning("Fetching keys from JSON file because keys were not found in environment variables from GitHub or Streamlit Secrets.")
 
-# Load API keys
-GROQ_API_KEY, NOMIC_API_KEY = load_api_keys()
+        except FileNotFoundError:
+            st.error("API keys JSON file is missing. Please make sure the file is present.")
+            keys_available = False
+
+        except json.JSONDecodeError:
+            st.error("Invalid JSON structure in the API keys file. Please check the JSON format.")
+            keys_available = False
+
+    # Final check if both keys are still missing
+    if not os.getenv('GROQ_API_KEY') or not os.getenv('NOMIC_API_KEY'):
+        st.error("API keys missing from both JSON file and environment variables in GitHub or Streamlit secrets.")
+        keys_available = False
+
+    return keys_available
+
+# Load API keys and get availability status
+api_keys_available = load_api_keys()
+
+# Initialize uploaded_file variable
+uploaded_file = None
+
+# Only show the uploader if API keys are available
+if api_keys_available:
+    # File uploader
+    uploaded_file = st.file_uploader("Upload a PDF document", type="pdf")
+else:
+    st.error("Please ensure API keys are set in the environment variables or the JSON file to upload a PDF.")
 
 # Initialize session id and state to keep track of chat history
 if "session_id" not in st.session_state:
@@ -58,9 +91,6 @@ if "chain" not in st.session_state:
 if "pdf_name" not in st.session_state:
     st.session_state.pdf_name = None
 
-# File uploader
-uploaded_file = st.file_uploader("Upload a PDF document", type="pdf")
-
 def initialize_chain():
     # Initialize LLM
     llm = ChatGroq(model="llama3-8b-8192", temperature=0.7, max_tokens=2024)
@@ -71,7 +101,7 @@ def initialize_chain():
         with open("temp.pdf", "wb") as f:
             f.write(uploaded_file.getvalue())
         loader = PyPDFLoader("temp.pdf")
-        docs = loader.load()
+        docs = loader.load()    # extracts text into a list of document objects
 
         # Debug - Print loaded documents
         #print("Loaded Documents:", docs)
@@ -83,7 +113,7 @@ def initialize_chain():
 
         # Split text and create vectorstore
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-        splits = text_splitter.split_documents(docs)
+        splits = text_splitter.split_documents(docs)     # list of text chunks
 
         # Debug - Print split documents
         #print("Split Documents:", splits)
@@ -94,7 +124,12 @@ def initialize_chain():
             return False
 
         # Use Nomic embeddings
-        embeddings = NomicEmbeddings(model="nomic-embed-text-v1.5")
+        # embeddings = NomicEmbeddings(model="nomic-embed-text-v1.5")
+        # Exception: (400, '{"detail":"You have exceeded your 1000000 free tokens of Nomic Embedding API usage.
+        # Enter a payment method at https://atlas.nomic.ai to continue with usage-based billing."}')
+
+        # Using Hugging Face embeddings model because free tokens exceeded for Nomic Embeddings as mentioned above
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
         # Create  in-memory vector store
         st.session_state.vector_store = InMemoryVectorStore.from_documents(documents=splits,embedding=embeddings)
