@@ -1,51 +1,45 @@
+import streamlit as st
 import os
-os.environ['USER_AGENT'] = 'MyChatbot/1.0 (Windows 10; Python 3.12)'
-
-import langchain_community
-import bs4
 from langchain_community.vectorstores import InMemoryVectorStore
-from langchain_community.document_loaders import WebBaseLoader
-from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_groq import ChatGroq
-from langchain_nomic import NomicEmbeddings
-import json
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_ollama import ChatOllama
-from langchain_ollama import OllamaEmbeddings
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 
-# Reading the API key file
-with open("api_keys.json", "r") as f:
-    apis = json.load(f)
+# Set user-agent
+os.environ['USER_AGENT'] = 'MyChatbot/1.0 (Windows 10; Python 3.12)'
 
-#llm = ChatGroq(model="llama3-8b-8192")
+# Set up the LLM model
 llm = ChatOllama(model="llama3.2:1b")
 
-# A pdf document loader
+# Load your PDF
 file_path = 'Generative AI Course.pdf'
 loader = PyPDFLoader(file_path)
-
 docs = loader.load()
 
+# Text splitting
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=300)
 splits = text_splitter.split_documents(docs)
-#vectorstore = InMemoryVectorStore.from_documents(documents=splits, embedding=NomicEmbeddings(model="nomic-embed-text-v1.5"))
-vectorstore = InMemoryVectorStore.from_documents(documents=splits, embedding=OllamaEmbeddings(model="nomic-embed-text:latest"))
+
+# Set up the vectorstore
+vectorstore = InMemoryVectorStore.from_documents(documents=splits,
+                                                 embedding=OllamaEmbeddings(model="nomic-embed-text:latest"))
 retriever = vectorstore.as_retriever()
 
-# Contextualize question
+# Contextualize the user's question based on chat history
 contextualize_q_system_prompt = (
-    "Given a chat history and the latest user question"
-    "which might refer context in the chat history,"
-    "formulate a standalone question which is relevant and self understandable"
-    "without the chat history, Do NOT answer the question,"
-    "just reformulate it if needed and otherwise return it as it is"
+    "Given a chat history and the latest user question "
+    "which might refer context in the chat history, "
+    "formulate a standalone question which is relevant and self-understandable "
+    "without the chat history. Do NOT answer the question, "
+    "just reformulate it if needed and otherwise return it as it is."
 )
+
 contextualize_q_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", contextualize_q_system_prompt),
@@ -53,19 +47,18 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages(
         ('human', '{input}')
     ]
 )
+
 history_aware_retriever = create_history_aware_retriever(
     llm, retriever, contextualize_q_prompt
 )
 
 # Answering the question
-
 system_prompt = (
-    "You are an assistant for question-answering tasks."
-    "Use the following pieces of retrieved context to answer the question"
-    "If you do not know the answer, say that you don't know."
+    "You are an assistant for question-answering tasks. "
+    "Use the following pieces of retrieved context to answer the question. "
+    "If you do not know the answer, say that you don't know. "
     "Use 5 to 10 sentences maximum to keep the answer concise."
-    "\n\n"
-    "{context}"
+    "\n\n{context}"
 )
 
 qa_prompt = ChatPromptTemplate.from_messages(
@@ -79,7 +72,7 @@ qa_prompt = ChatPromptTemplate.from_messages(
 question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-# Create a chat history
+# Create a chat history store
 store = {}
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
@@ -87,24 +80,39 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
 
-
+# Create the conversational chain with message history
 conversational_rag_chain = RunnableWithMessageHistory(
     rag_chain,
     get_session_history,
-    input_messages_key="input",
-    history_messages_key="chat_history",
-    output_messages_key="answer"
+    input_messages_key="input",  # Input messages (from user)
+    history_messages_key="chat_history",  # Chat history (conversation context)
+    output_messages_key="answer"  # The answer generated by the system
 )
 
-while True:
-    user_input = input("User: ")
-    if user_input.lower() in ['quit', 'exit', 'bye', 'q']:
-        print('Goodbye')
-        break
+# Streamlit UI
+st.title("Generative AI Course Q&A")
+
+# Global session_id variable
+SESSION_ID = "abc123"  # Static session for now (could be dynamic in future)
+
+# User input section
+user_input = st.text_input("Ask a question:")
+
+if user_input:
+    # Invoke the conversational chain with user input
     response = conversational_rag_chain.invoke(
-        {'input': user_input},
-        config={
-            'configurable': {'session_id': "abc123"}
-        },
+        {'input': user_input},  # Pass user input here
+        config={'configurable': {'session_id': SESSION_ID}}  # Provide session_id as configuration
     )
-    print(response['answer'])
+
+    # Show the answer in the Streamlit interface
+    st.subheader("Answer")
+    st.write(response['answer'])
+
+    # Optionally, display the chat history
+    chat_history = get_session_history(SESSION_ID)
+    st.subheader("Chat History")
+    for message in chat_history.messages:
+        st.write(f"{message.role}: {message.text}")
+else:
+    st.write("Please type a question above to get started.")
