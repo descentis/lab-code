@@ -1,0 +1,19 @@
+# Ignore virtual environments
+myenv/
+env/
+faiss_index/
+
+# Python compiled files
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
