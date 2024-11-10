@@ -7,3 +7,4 @@ It can also be called as bridge b/w Devs and LLM as Langchain wraps the LLM and 
 RAG - For sending queries to LLMs with relevent documents stored in Vector DB in embedded format.
 Here we have chroma DB for storing Vector Embedding and Nomic for converting Docs to Vector Embeddings
 
+
