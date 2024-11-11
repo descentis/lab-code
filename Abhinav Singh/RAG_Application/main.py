@@ -16,10 +16,10 @@ import os
 import uuid
 
 # Page config
-st.set_page_config(page_title="RAG Application")
+st.set_page_config(page_title="RAG Application ChatBot")
 
 # Chat Title
-st.title("RAG APPLICATION")
+st.title("RAG APPLICATION CHATBOT")
 
 def fetch_api_keys():
     """Load API keys from environment variable if available else fetch keys from JSON file."""
@@ -55,7 +55,7 @@ if "chain" not in st.session_state:
 def initialize_chain():
     """Initialize the chain."""
     # Initialize LLM
-    llm = ChatGroq(model="llama3-8b-8192", temperature=0.5, max_tokens=2500)
+    llm = ChatGroq(model="llama3-8b-8192", temperature=0.3, max_tokens=2000)
 
     # Save uploaded file temporarily
     with open("temp.pdf", "wb") as f:
